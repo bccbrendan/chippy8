@@ -6,7 +6,8 @@ const DISPLAY_WIDTH: usize = 64;
 
 enum InstructionPointer {
     Inc, // just run the next instruction
-    // TODO - branches, jumps, etc.
+    Jump(u16), // set PC to the given addr
+    Skip, // skip one PC instruction
 }
 
 pub struct Cpu {
@@ -36,18 +37,31 @@ impl Cpu {
     }
 
     pub fn execute(&mut self, opcode: u16) {
-
         let nibbles = (
             (opcode >> 12) as u8, (opcode & 0x0F00) >> 8 as u8, (opcode & 0x00F0) >> 4 as u8, (opcode & 0x000F) as u8
         );
-
+        let nnn = (opcode & 0x0FFF) as u16;
+        let kk = (opcode & 0x00FF) as u16;
+        let x = ((opcode & 0x0F00) >> 8) as u8;
+        let y = ((opcode & 0x00F0) >> 4) as u8;
         let next_ip = match nibbles {
             // (0x0, _, _, _)  => panic!("SYS addr - ignored."),
-            (0x0, 0x0,  0xE, 0x0) => self.op_cls(),
+            (0x0, 0x0, 0xE, 0x0) => self.op_cls(),
+            (0x0, 0x0, 0xE, 0xE) => self.op_ret(),
+            (0x1, _, _, _) => self.op_jp(nnn),
+            (0x2, _, _, _) => self.op_call(nnn),
+            (0x3, _, _, _) => self.op_se(x, kk),
+            (0x4, _, _, _) => self.op_sne(x, kk),
+            (0x5, _, _, _) => self.op_se_vxy(x, y),
+            (0x6, _, _, _) => self.op_ldx_b(x, kk),
+            (0x7, _, _, _) => self.op_add(x, kk),
+            (0x8, _, _, _) => self.op_ldx_y(x, y),
             _ => panic!("Unrecognized opcode: {opcode}"),
         };
         match next_ip {
             InstructionPointer::Inc => self.pc += OPCODE_SIZE,
+            InstructionPointer::Jump(addr) => self.pc = addr,
+            InstructionPointer::Skip => self.pc += OPCODE_SIZE * 2,
         }
     }
 
@@ -64,60 +78,85 @@ impl Cpu {
         InstructionPointer::Inc
     }
 
+    // 00EE - RET - Return from a subroutine.
+    // The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
+    fn op_ret(&mut self) -> InstructionPointer {
+        let next_pc = self.stack[self.sp as usize];
+        self.sp -= 1;
+        InstructionPointer::Jump(next_pc)
+    }
+
+    // 1nnn - JP addr Jump to location nnn. The interpreter sets the program counter to nnn.
+    fn op_jp(&mut self, nnn: u16) -> InstructionPointer {
+        InstructionPointer::Jump(nnn)
+    }
+
+
+    // 2nnn - CALL addr Call subroutine at nnn.
+    // The interpreter increments the stack pointer,
+    // then puts the current PC on the top of the stack. 
+    // The PC is then set to nnn.
+    fn op_call(&mut self, nnn: u16) -> InstructionPointer {
+        self.sp += 1;
+        self.stack[self.sp as usize] = self.pc;
+        InstructionPointer::Jump(nnn)
+    }
+
+    // 3xkk - SE Vx, byte
+    // Skip next instruction if Vx = kk.
+    // The interpreter compares register Vx to kk, and if they are equal, increments the program counter by 2.
+    fn op_se(&mut self, x: u8, kk: u16) -> InstructionPointer {
+        if self.v[x as usize] == kk {
+            InstructionPointer::Skip
+        } else {
+            InstructionPointer::Inc
+        }
+    }
+
+    // 4xkk - SNE Vx, byte
+    // Skip next instruction if Vx != kk.
+    // The interpreter compares register Vx to kk, and if they are not equal, increments the program counter by 2.
+    fn op_sne(&mut self, x: u8, kk: u16) -> InstructionPointer {
+        if self.v[x as usize] != kk {
+            InstructionPointer::Skip
+        } else {
+            InstructionPointer::Inc
+        }
+    }
+
+    // 5xy0 - SE Vx, Vy -  Skip next instruction if Vx = Vy.
+    // The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
+    fn op_se_vxy(&mut self, x: u8, y: u8) -> InstructionPointer {
+        if self.v[x as usize] == self.v[y as usize] {
+            InstructionPointer::Skip
+        } else {
+            InstructionPointer::Inc
+        }
+    }
+
+    // 6xkk - LD Vx, byte - Set Vx = kk.
+    // The interpreter puts the value kk into register Vx.
+    fn op_ldx_b(&mut self, x: u8, kk: u16) -> InstructionPointer {
+        self.v[x as usize] = kk;
+        InstructionPointer::Inc
+    }
+
+
+    // 7xkk - ADD Vx, byte - Set Vx = Vx + kk.
+    // Adds the value kk to the value of register Vx, then stores the result in Vx.
+    fn op_add(&mut self, x: u8, kk: u16) -> InstructionPointer {
+        self.v[x as usize] += kk;
+        InstructionPointer::Inc
+    }
+
+    // 8xy0 - LD Vx, Vy - Set Vx = Vy.
+    // Stores the value of register Vy in register Vx.
+    fn op_ldx_y(&mut self, x: u8, y: u8) -> InstructionPointer {
+        self.v[x as usize] = self.v[y as usize];
+        InstructionPointer::Inc
+    }
 
     /*
-    00EE - RET
-    Return from a subroutine.
-
-    The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
-
-
-    1nnn - JP addr
-    Jump to location nnn.
-
-    The interpreter sets the program counter to nnn.
-
-
-    2nnn - CALL addr
-    Call subroutine at nnn.
-
-    The interpreter increments the stack pointer, then puts the current PC on the top of the stack. The PC is then set to nnn.
-
-
-    3xkk - SE Vx, byte
-    Skip next instruction if Vx = kk.
-
-    The interpreter compares register Vx to kk, and if they are equal, increments the program counter by 2.
-
-
-    4xkk - SNE Vx, byte
-    Skip next instruction if Vx != kk.
-
-    The interpreter compares register Vx to kk, and if they are not equal, increments the program counter by 2.
-
-
-    5xy0 - SE Vx, Vy
-    Skip next instruction if Vx = Vy.
-
-    The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
-
-
-    6xkk - LD Vx, byte
-    Set Vx = kk.
-
-    The interpreter puts the value kk into register Vx.
-
-
-    7xkk - ADD Vx, byte
-    Set Vx = Vx + kk.
-
-    Adds the value kk to the value of register Vx, then stores the result in Vx.
-
-    8xy0 - LD Vx, Vy
-    Set Vx = Vy.
-
-    Stores the value of register Vy in register Vx.
-
 
     8xy1 - OR Vx, Vy
     Set Vx = Vx OR Vy.
