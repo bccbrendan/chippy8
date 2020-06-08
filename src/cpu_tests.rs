@@ -5,6 +5,7 @@ const PC_NEXT: u16 = 0xA02;
 
 fn setup_cpu() -> Cpu {
     let mut cpu = Cpu::new();
+    cpu.pc = PC;
     cpu.v = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf];
     cpu.vram[0][0] = 0xa8;
     cpu.vram[DISPLAY_HEIGHT-1][DISPLAY_WIDTH-1] = 0xf0;
@@ -27,10 +28,10 @@ fn test_cls() {
     // 00E0 - CLS
     // Clear the display.
     let mut cpu = setup_cpu();
-    let expected : [[u8; DISPLAY_HEIGHT]; DISPLAY_WIDTH] = [[0; DISPLAY_HEIGHT]; DISPLAY_WIDTH];
     cpu.execute(0x00E0);
     assert_eq!(cpu.vram[0][0], 0x0);
     assert_eq!(cpu.vram[DISPLAY_HEIGHT-1][DISPLAY_WIDTH-1], 0x0);
+    assert_eq!(cpu.pc, PC_NEXT);
 }
 
 
