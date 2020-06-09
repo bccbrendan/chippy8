@@ -165,124 +165,413 @@ fn test_ldx() {
     assert_eq!(cpu.pc, PC_NEXT);
 }
 
-/*
-8xy1 - OR Vx, Vy
-Set Vx = Vx OR Vy.
-Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0.
+#[test]
+fn test_or() {
+    // 8xy1 - OR Vx, Vy - Set Vx = Vx OR Vy.
+    // Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 0xa5;
+    cpu.v[y]  = 0x0f;
+    cpu.execute(0x8471);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0xaf);
+}
 
 
-8xy2 - AND Vx, Vy
-Set Vx = Vx AND Vy.
-Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0.
+#[test]
+fn test_and() {
+    // 8xy2 - AND Vx, Vy - Set Vx = Vx AND Vy.
+    // Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 0xa5;
+    cpu.v[y]  = 0x0F;
+    cpu.execute(0x8472);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0x05);
+}
 
 
-8xy3 - XOR Vx, Vy
-Set Vx = Vx XOR Vy.
-Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+#[test]
+fn test_xor() {
+    // 8xy3 - XOR Vx, Vy - Set Vx = Vx XOR Vy.
+    // Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 0xa0;
+    cpu.v[y] = 0x15;
+    cpu.execute(0x8473);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0xb5);
+}
 
 
-8xy4 - ADD Vx, Vy
-Set Vx = Vx + Vy, set VF = carry.
-The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
+#[test]
+fn test_add_vx_vy() {
+    // 8xy4 - ADD Vx Vy - Set Vx = Vx + Vy, set VF = carry.
+    // The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 0x12;
+    cpu.v[y] = 0x34;
+    cpu.execute(0x8474);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0x12 + 0x34);
+    assert_eq!(cpu.v[0xf], 0);
+    cpu.v[x] = 0xF5;
+    cpu.v[y] = 0x11;
+    cpu.execute(0x8474);
+    assert_eq!(cpu.pc, PC_NEXT + OPCODE_SIZE);
+    assert_eq!(cpu.v[0xf], 1);
+    assert_eq!(cpu.v[x], 0x06);
+}
 
 
-8xy5 - SUB Vx, Vy
-Set Vx = Vx - Vy, set VF = NOT borrow.
-If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+#[test]
+fn test_sub() {
+    // 8xy5 - SUB Vx, Vy - Set Vx = Vx - Vy, set VF = NOT borrow.
+    // If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    let mut cpu = setup_cpu();
+    cpu.v[x] = 0xff;
+    cpu.v[y] = 0x2;
+    cpu.execute(0x8475);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[0xf], 1);
+    assert_eq!(cpu.v[x], 0xfd);
+    cpu.v[x] = 0x0;
+    cpu.v[y] = 0x2;
+    cpu.execute(0x8475);
+    assert_eq!(cpu.pc, PC_NEXT + OPCODE_SIZE);
+    assert_eq!(cpu.v[0xf], 0);
+    assert_eq!(cpu.v[x], 0xfe);
+}
 
 
-8xy6 - SHR Vx {, Vy}
-Set Vx = Vx SHR 1.
-If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
+#[test]
+fn test_shr() {
+    // 8xy6 - SHR Vx {, Vy} - Set Vx = Vx SHR 1.
+    // If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 0x62;
+    cpu.v[0xf] = 0x11;
+    let y = 0x7;
+    cpu.execute(0x8476);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0x31);
+    assert_eq!(cpu.v[0xf], 0x00);
+    cpu.execute(0x8476);
+    assert_eq!(cpu.pc, PC_NEXT + OPCODE_SIZE);
+    assert_eq!(cpu.v[x], 0x18);
+    assert_eq!(cpu.v[0xf], 0x01);
+}
 
 
-8xy7 - SUBN Vx, Vy
-Set Vx = Vy - Vx, set VF = NOT borrow.
-If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
+#[test]
+fn test_subn() {
+    // 8xy7 - SUBN Vx, Vy - Set Vx = Vy - Vx, set VF = NOT borrow.
+    // If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 2;
+    cpu.v[y] = 0xff;
+    cpu.v[0xf] = 0xdb;
+    cpu.execute(0x8477);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0xfd);
+    assert_eq!(cpu.v[0xf], 1);
+    cpu.v[x] = 1;
+    cpu.v[y] = 0x0;
+    cpu.v[0xf] = 0xdb;
+    cpu.execute(0x8477);
+    assert_eq!(cpu.v[x], 0xff);
+    assert_eq!(cpu.v[0xf], 0);
+}
 
 
-8xyE - SHL Vx {, Vy}
-Set Vx = Vx SHL 1.
-If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
+#[test]
+fn test_shl() {
+    // 8xyE - SHL Vx {, Vy} - Set Vx = Vx SHL 1.
+    // If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 0x12;
+    cpu.v[0xf] = 0x9;
+    cpu.execute(0x847E);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0x24);
+    assert_eq!(cpu.v[0xf], 0);
+    cpu.v[x] = 0x82;
+    cpu.v[0xf] = 0x09;
+    cpu.execute(0x847E);
+    assert_eq!(cpu.v[x], 0x04);
+    assert_eq!(cpu.v[0xf], 1);
+}
 
 
-9xy0 - SNE Vx, Vy
-Skip next instruction if Vx != Vy.
-The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
+#[test]
+fn test_sne() {
+    // 9xy0 - SNE Vx, Vy - Skip next instruction if Vx != Vy.
+    // The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    cpu.v[x] = 0x11;
+    cpu.v[y] = 0x11;
+    cpu.execute(0x9470);
+    assert_eq!(cpu.pc, PC_NEXT);
+    cpu.pc = PC;
+    cpu.v[x] = 0x11;
+    cpu.v[y] = 0x01;
+    cpu.execute(0x9470);
+    assert_eq!(cpu.pc, PC_NEXT + OPCODE_SIZE);
+}
 
 
-Annn - LD I, addr
-Set I = nnn.
-The value of register I is set to nnn.
+#[test]
+fn test_ld_i() {
+    // Annn - LD I, addr - Set I = nnn.
+    // The value of register I is set to nnn.
+    let mut cpu = setup_cpu();
+    let nnn = 0x420;
+    cpu.execute(0xA420);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.i, nnn);
+}
 
 
-Bnnn - JP V0, addr
-Jump to location nnn + V0.
-The program counter is set to nnn plus the value of V0.
+#[test]
+fn test_jpv() {
+    // Bnnn - JPV0, addr - Jump to location nnn + V0.
+    // The program counter is set to nnn plus the value of V0.
+    let mut cpu = setup_cpu();
+    cpu.v[0] = 0x24;
+    let nnn = 0x420;
+    cpu.execute(0xB420);
+    assert_eq!(cpu.pc, 0x420 + 0x24);
+}
 
 
-Cxkk - RND Vx, byte
-Set Vx = random byte AND kk.
-The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
+#[test]
+fn test_rnd() {
+    // Cxkk - RND Vx, byte - Set Vx = random byte AND kk.
+    // The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let kk = 0x55u8;
+    cpu.execute(0xC455);
+    assert_eq!(false, true);
+}
 
 
-Dxyn - DRW Vx, Vy, nibble
-Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+#[test]
+fn test_drw() {
+    // Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+    // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let y = 0x7;
+    let n = 0x8u8;
+    cpu.execute(0xD478);
+    assert_eq!(false, true);
+}
 
 
-Ex9E - SKP Vx
-Skip next instruction if key with the value of Vx is pressed.
-Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+#[test]
+fn test_skp() {
+    // Ex9E - SKP Vx - Skip next instruction if key with the value of Vx is pressed.
+    // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 0;
+    cpu.ram[PC as usize] = 0xE4;
+    cpu.ram[PC as usize + 1] = 0x9E;
+    // all keys pressed except key0
+    cpu.tick([false, true, true, true,
+              true, true, true, true,
+              true, true, true, true,
+              true, true, true, true]);
+    assert_eq!(cpu.pc, PC_NEXT);
+    cpu.pc = PC;
+    // key0 is only key pressed
+    cpu.tick([true, false, false, false,
+              false, false, false, false,
+              false, false, false, false,
+              false, false, false, false]);
+    assert_eq!(cpu.pc, PC_NEXT + OPCODE_SIZE);
+}
 
 
-ExA1 - SKNP Vx
-Skip next instruction if key with the value of Vx is not pressed.
-Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+#[test]
+fn test_sknp() {
+    // ExA1 - SKNP Vx - Skip next instruction if key with the value of Vx is not pressed.
+    // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 0;
+    cpu.ram[PC as usize] = 0xE4;
+    cpu.ram[PC as usize + 1] = 0xa1;
+    // key0 is only key pressed
+    cpu.tick([true, false, false, false,
+              false, false, false, false,
+              false, false, false, false,
+              false, false, false, false]);
+    assert_eq!(cpu.pc, PC_NEXT);
+
+    cpu.pc = PC;
+    // all keys pressed except key0
+    cpu.tick([false, true, true, true,
+              true, true, true, true,
+              true, true, true, true,
+              true, true, true, true]);
+    assert_eq!(cpu.pc, PC_NEXT + OPCODE_SIZE);
+}
 
 
-Fx07 - LD Vx, DT
-Set Vx = delay timer value.
-The value of DT is placed into Vx.
+#[test]
+fn test_ld_vx_dt() {
+    // Fx07 - LD Vx DT - Set Vx = delay timer value.
+    // The value of DT is placed into Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 0x7;
+    cpu.delay_timer = 0x42;
+    cpu.execute(0xF407);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0x42);
+}
 
 
-Fx0A - LD Vx, K
-Wait for a key press, store the value of the key in Vx.
-All execution stops until a key is pressed, then the value of that key is stored in Vx.
+#[test]
+fn test_ld_vx_k() {
+    // Fx0A - LD Vx K - Wait for a key press, store the value of the key in Vx.
+    // All execution stops until a key is pressed, then the value of that key is stored in Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.execute(0xF40A);
+    assert_eq!(cpu.pc, PC_NEXT);
+    cpu.tick([false; 16]);
+    assert_eq!(cpu.pc, PC_NEXT);
+    // 0xF71E;  add I v[7], safe to exec
+    cpu.ram[cpu.pc as usize] = 0xF7;
+    cpu.ram[(cpu.pc + 1) as usize] = 0x1E;
+    assert_eq!(cpu.pc, PC_NEXT);
+    cpu.tick([false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false]);
+    assert_eq!(cpu.pc, PC_NEXT + 2);
+    assert_eq!(cpu.v[4], 2);
+}
 
 
-Fx15 - LD DT, Vx
-Set delay timer = Vx.
-DT is set equal to the value of Vx.
+#[test]
+fn test_ld_dt_vx() {
+    // Fx15 - LD DT Vx - Set delay timer = Vx.
+    // DT is set equal to the value of Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 0xa5;
+    cpu.execute(0xF415);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.delay_timer, 0xa5);
+}
 
 
-Fx18 - LD ST, Vx
-Set sound timer = Vx.
-ST is set equal to the value of Vx.
+#[test]
+fn test_ld_st_vx() {
+    // Fx18 - LD ST Vx - Set sound timer = Vx.
+    // ST is set equal to the value of Vx.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 0xa5;
+    cpu.execute(0xF418);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.sound_timer, 0xa5);
+}
 
 
-Fx1E - ADD I, Vx
-Set I = I + Vx.
-The values of I and Vx are added, and the results are stored in I.
+#[test]
+fn test_add_i_Vx() {
+    // Fx1E - ADD_I_Vx - Set I = I + Vx.
+    // The values of I and Vx are added, and the results are stored in I.
+    let mut cpu = setup_cpu();
+    cpu.i = 0x123;
+    let x = 0x4;
+    cpu.v[x as usize] = 0x23;
+    cpu.execute(0xF41E);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.i, 0x123 + 0x23);
+}
 
 
-Fx29 - LD F, Vx
-Set I = location of sprite for digit Vx.
-The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx. See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
+#[test]
+fn test_ld_f_vx() {
+    // Fx29 - LD F Vx - Set I = location of sprite for digit Vx.
+    // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx. See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.v[x] = 7;
+    cpu.execute(0xF429);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.i, 0 + (7 * 5));
+    assert_eq!(cpu.i, HEX_DIGIT_ADDR_START + (7 * HEX_DIGIT_BYTE_LENGTH) as u16);
+}
 
 
-Fx33 - LD B, Vx
-Store BCD representation of Vx in memory locations I, I+1, and I+2.
-The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
+#[test]
+fn test_ld_b_vX() {
+    // Fx33 - LD_B_Vx - Store BCD representation of Vx in memory locations I, I+1, and I+2.
+    // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.execute(0xF433);
+    assert_eq!(false, true);
+}
 
 
-Fx55 - LD [I], Vx
-Store registers V0 through Vx in memory starting at location I.
-The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
+#[test]
+fn test_ld_i_vX() {
+    // Fx55 - LD_I_Vx - Store registers V0 through Vx in memory starting at location I.
+    // The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
+    let mut cpu = setup_cpu();
+    let x = 0x4;
+    cpu.execute(0xF455);
+    assert_eq!(false, true);
+}
 
 
-Fx65 - LD Vx, [I]
-Read registers V0 through Vx from memory starting at location I.
-The interpreter reads values from memory starting at location I into registers V0 through Vx.
-*/
+#[test]
+fn test_ld_vx_i() {
+    // Fx65 - LD_Vx_I - Read registers V0 through Vx from memory starting at location I.
+    // The interpreter reads values from memory starting at location I into registers V0 through Vx.
+    let mut cpu = setup_cpu();
+    cpu.i = 0x20;
+    cpu.ram[0x20] = 0xa;
+    cpu.ram[0x21] = 0xc;
+    cpu.ram[0x22] = 0xe;
+    cpu.ram[0x23] = 0xd;
+    cpu.ram[0x24] = 0x7;
+    cpu.ram[0x25] = 0x9;  // shouldn't be copied
+    cpu.v[5] = 0x0;
+    // x = 4
+    cpu.execute(0xF465);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.i, 0x20);
+    assert_eq!(cpu.v[0], 0xa);
+    assert_eq!(cpu.v[1], 0xc);
+    assert_eq!(cpu.v[2], 0xe);
+    assert_eq!(cpu.v[3], 0xd);
+    assert_eq!(cpu.v[4], 0x7);
+    assert_eq!(cpu.v[5], 0x0);
+}
  
