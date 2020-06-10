@@ -10,7 +10,6 @@ edition = "2018"
 # sudo apt install libsdl2-dev
 
 
-
 [dependencies]
 sdl2 = "0.32"
 rand = "0.7.3"

@@ -18,7 +18,10 @@ fn test_init() {
     assert_eq!(cpu.sp, 0x0);
     assert_eq!(cpu.delay_timer, 0x0);
     assert_eq!(cpu.sound_timer, 0x0);
-    // TODO font data loading
+    assert_eq!(cpu.ram[0], 0xF0); // first byte of 0
+    assert_eq!(cpu.ram[1], 0x90); // second byte of 0
+    assert_eq!(cpu.ram[HEX_DIGIT_DATA.len() - HEX_DIGIT_BYTE_LENGTH], 0xF0); // first byte of f
+    assert_eq!(cpu.ram[1 + HEX_DIGIT_DATA.len() - HEX_DIGIT_BYTE_LENGTH], 0x80); // first byte of f
 }
 
 #[test]
@@ -260,7 +263,6 @@ fn test_shr() {
     let x = 0x4;
     cpu.v[x] = 0x62;
     cpu.v[0xf] = 0x11;
-    let y = 0x7;
     cpu.execute(0x8476);
     assert_eq!(cpu.pc, PC_NEXT);
     assert_eq!(cpu.v[x], 0x31);
@@ -301,7 +303,6 @@ fn test_shl() {
     // If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
     let mut cpu = setup_cpu();
     let x = 0x4;
-    let y = 0x7;
     cpu.v[x] = 0x12;
     cpu.v[0xf] = 0x9;
     cpu.execute(0x847E);
@@ -353,7 +354,6 @@ fn test_jpv() {
     // The program counter is set to nnn plus the value of V0.
     let mut cpu = setup_cpu();
     cpu.v[0] = 0x24;
-    let nnn = 0x420;
     cpu.execute(0xB420);
     assert_eq!(cpu.pc, 0x420 + 0x24);
 }
@@ -466,7 +466,6 @@ fn test_skp() {
 fn test_sknp() {
     // ExA1 - SKNP Vx - Skip next instruction if key with the value of Vx is not pressed.
     // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
-    let x = 0x4;
     let mut cpu = setup_cpu();
     let x = 0x4;
     cpu.v[x] = 0;
@@ -508,7 +507,6 @@ fn test_ld_vx_k() {
     // Fx0A - LD Vx K - Wait for a key press, store the value of the key in Vx.
     // All execution stops until a key is pressed, then the value of that key is stored in Vx.
     let mut cpu = setup_cpu();
-    let x = 0x4;
     cpu.execute(0xF40A);
     assert_eq!(cpu.pc, PC_NEXT);
     cpu.tick([false; 16]);

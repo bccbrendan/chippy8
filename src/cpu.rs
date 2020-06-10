@@ -1,12 +1,12 @@
 // reference: http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
 use rand::Rng;
+use crate::fonts::*;
 
+const RESET_VECTOR: u16 = 0x200;
+const RAM_LENGTH: usize = 0x1000;
 const OPCODE_SIZE: u16 = 2;
 const DISPLAY_HEIGHT: usize = 32;
 const DISPLAY_WIDTH: usize = 64;
-const HEX_DIGIT_BYTE_LENGTH: usize = 5;
-const HEX_DIGIT_ADDR_START: u16 = 0x000;
-const HEX_DIGIT_ADDR_END: u16 = 0x1FF;
 
 enum InstructionPointer {
     Inc, // just run the next instruction
@@ -33,15 +33,17 @@ pub struct Cpu {
 impl Cpu {
 
     pub fn new() -> Self {
+        let mut ram = [0; RAM_LENGTH];
+        ram[..HEX_DIGIT_DATA.len()].copy_from_slice(&HEX_DIGIT_DATA);
         Cpu {
-            pc: 0x200,
+            pc: RESET_VECTOR,
             v: [0; 16],
             sp: 0,
             stack: [0; 16],
             i: 0,
             delay_timer: 0,
             sound_timer: 0,
-            ram: [0; 0x1000],
+            ram: ram,
             vram: [[0; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
             awaiting_keypress: false,
             first_key_pressed_register: 0,
@@ -285,7 +287,7 @@ impl Cpu {
 
     // 8xyE - SHL Vx {, Vy} - Set Vx = Vx SHL 1.
     // If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
-    fn op_shl(&mut self, x: usize, y: usize) -> InstructionPointer {
+    fn op_shl(&mut self, x: usize, _y: usize) -> InstructionPointer {
         self.v[0xf] = if self.v[x] & 0x80 != 0 { 1 } else { 0 };
         self.v[x] = self.v[x] << 1;
         InstructionPointer::Inc
