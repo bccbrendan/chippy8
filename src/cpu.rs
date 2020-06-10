@@ -80,9 +80,10 @@ impl Cpu {
             (opcode & 0x000F) as u8
         );
         let nnn = (opcode & 0x0FFF) as u16;
-        let kk = (opcode & 0x00FF) as u8;
-        let x = ((opcode & 0x0F00) >> 8) as usize;
-        let y = ((opcode & 0x00F0) >> 4) as usize;
+        let kk =  (opcode & 0x00FF) as u8;
+        let x =  ((opcode & 0x0F00) >> 8) as usize;
+        let y =  ((opcode & 0x00F0) >> 4) as usize;
+        let n =   (opcode & 0x000F) as usize;
         let next_ip = match nibbles {
             // (0x0,   _,   _,   _)  => panic!("SYS addr - ignored."),
             (0x0, 0x0, 0xE, 0x0) => self.op_cls(),
@@ -107,6 +108,7 @@ impl Cpu {
             (0xa,   _,   _,   _) => self.op_ld_i(nnn),
             (0xb,   _,   _,   _) => self.op_jpv(nnn),
             (0xc,   _,   _,   _) => self.op_rnd(x, kk),
+            (0xd,   _,   _,   _) => self.op_drw(x, y, n),
             (0xe,   _, 0x9, 0xe) => self.op_skp(x),
             (0xe,   _, 0xa, 0x1) => self.op_sknp(x),
             (0xf,   _, 0x0, 0x7) => self.op_ld_vx_dt(x),
@@ -325,7 +327,45 @@ impl Cpu {
 
 
     // Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-    // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+    // The interpreter reads n bytes from memory, 
+    // starting at the address stored in I. 
+    // These bytes are then displayed as sprites on screen 
+    // at coordinates (Vx, Vy). 
+    // Sprites are XORed onto the existing screen. 
+    // If this causes any pixels to be erased, VF is set to 1,
+    // otherwise it is set to 0. 
+    // If the sprite is positioned so part of it is outside 
+    // the coordinates of the display, it wraps around to 
+    // the opposite side of the screen. 
+    //
+    // vram should be laid out as a 64x32 monochrome pixel display
+    //               x tracks columns
+    //  +--------------------------------------------+
+    // y| (0,0)                               (63,0) |
+    // =|                                            |
+    // r|                                            |
+    // o|                                            |
+    // w| (0,31)                             (63,31) |
+    //  +--------------------------------------------+
+    fn op_drw(&mut self, x: usize, y: usize, n: usize) -> InstructionPointer {
+        self.v[0xf] = 0;
+        for byte in 0..n {
+            let row = (self.v[y] as usize + byte) % DISPLAY_HEIGHT;
+            let pixel_byte = self.ram[self.i as usize + byte];
+            for bit in 0..8 {
+                let column = (self.v[x] as usize + bit) % DISPLAY_WIDTH;
+                let pixel_data = (pixel_byte >> (7 - bit)) & 0x1;
+                let current_data = self.vram[row][column];
+                if (current_data & pixel_data) != 0 {
+                    self.v[0xf] = 0x1;
+                }
+                self.vram[row][column] = current_data ^ pixel_data;
+            }
+        }
+        self.vram_changed = true;
+        InstructionPointer::Inc
+    }
+
 
 
     // Ex9E - SKP Vx - Skip next instruction if key with the value of Vx is pressed.

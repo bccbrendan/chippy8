@@ -7,8 +7,6 @@ fn setup_cpu() -> Cpu {
     let mut cpu = Cpu::new();
     cpu.pc = PC;
     cpu.v = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf];
-    cpu.vram[0][0] = 0xa8;
-    cpu.vram[DISPLAY_HEIGHT-1][DISPLAY_WIDTH-1] = 0xf0;
     cpu
 }
 
@@ -424,14 +422,15 @@ fn test_draw_wrap_horizontal() {
 
 #[test]
 fn test_draw_wrap_vertical() {
+    // Dxyn
     // DRW Vx, Vy, nibble
     let mut cpu = setup_cpu();
-    let y = DISPLAY_HEIGHT - 1;
+    let y = DISPLAY_HEIGHT - 1; // write on bottom row, a 2byte sprite
     cpu.i = 0;
     cpu.ram[0] = 0b11111111;
     cpu.ram[1] = 0b11111111;
-    cpu.v[0] = 0;
-    cpu.v[1] = y as u8;
+    cpu.v[0] = 0;  // first column
+    cpu.v[1] = y as u8;  // last row
     cpu.execute(0xd012);
     assert_eq!(cpu.vram[y][0], 1);
     assert_eq!(cpu.vram[0][0], 1);
