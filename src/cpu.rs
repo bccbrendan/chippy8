@@ -1,6 +1,8 @@
 // reference: http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
 use rand::Rng;
+use std::cmp;
 use crate::fonts::*;
+use crate::cartridge::MAX_ROM_SIZE;
 
 const RESET_VECTOR: u16 = 0x200;
 const RAM_LENGTH: usize = 0x1000;
@@ -52,6 +54,12 @@ impl Cpu {
         }
     }
 
+    pub fn load_rom(&mut self, rom: &Vec<u8>) {
+        for i in 0..cmp::min(rom.len(), MAX_ROM_SIZE) {
+            self.ram[RESET_VECTOR as usize + i] = rom[i]
+        }
+    }
+
     pub fn tick(&mut self, keys_pressed: [bool; 16]) {
         self.keys_pressed = keys_pressed;
         if self.awaiting_keypress {
@@ -86,6 +94,7 @@ impl Cpu {
         let x =  ((opcode & 0x0F00) >> 8) as usize;
         let y =  ((opcode & 0x00F0) >> 4) as usize;
         let n =   (opcode & 0x000F) as usize;
+        println!("opcode: {:X}", opcode);
         let next_ip = match nibbles {
             // (0x0,   _,   _,   _)  => panic!("SYS addr - ignored."),
             (0x0, 0x0, 0xE, 0x0) => self.op_cls(),
@@ -123,7 +132,7 @@ impl Cpu {
             (0xf,   _, 0x6, 0x5) => self.op_ld_vx_i(x),
             (0xf,   _,   _, 0xe) => self.op_add_i_vx(x),
 
-            _ => panic!("Unrecognized opcode: {opcode}"),
+            _ => panic!(format!("Unrecognized opcode: {:X}", opcode)),
         };
         match next_ip {
             InstructionPointer::Inc => self.pc += OPCODE_SIZE,
