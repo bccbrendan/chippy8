@@ -1,4 +1,5 @@
 // reference: http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
+use rand::Rng;
 
 const OPCODE_SIZE: u16 = 2;
 const DISPLAY_HEIGHT: usize = 32;
@@ -19,13 +20,14 @@ pub struct Cpu {
     sp: u8,
     stack: [u16; 16],
     i: u16,
-    delay_timer: u16,
-    sound_timer: u16,
+    delay_timer: u8,
+    sound_timer: u8,
     ram: [u8; 0x1000],
     vram: [[u8; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
     awaiting_keypress: bool,
     first_key_pressed_register: usize,
     keys_pressed: [bool; 16],
+    vram_changed: bool,
 }
 
 impl Cpu {
@@ -44,6 +46,7 @@ impl Cpu {
             awaiting_keypress: false,
             first_key_pressed_register: 0,
             keys_pressed: [false; 16],
+            vram_changed: false,
         }
     }
 
@@ -101,11 +104,19 @@ impl Cpu {
             (0x8,   _,   _, 0x7) => self.op_subn(x, y),
             (0x8,   _,   _, 0xE) => self.op_shl(x, y),
             (0x9,   _,   _, 0x0) => self.op_sne_xy(x, y),
+            (0xa,   _,   _,   _) => self.op_ld_i(nnn),
             (0xb,   _,   _,   _) => self.op_jpv(nnn),
+            (0xc,   _,   _,   _) => self.op_rnd(x, kk),
             (0xe,   _, 0x9, 0xe) => self.op_skp(x),
             (0xe,   _, 0xa, 0x1) => self.op_sknp(x),
-            (0xf,   _, 0x6, 0x5) => self.op_ld_vx_i(x),
+            (0xf,   _, 0x0, 0x7) => self.op_ld_vx_dt(x),
             (0xf,   _, 0x0, 0xa) => self.op_ld_vx_k(x),
+            (0xf,   _, 0x1, 0x5) => self.op_ld_dt_vx(x),
+            (0xf,   _, 0x1, 0x8) => self.op_ld_st_vx(x),
+            (0xf,   _, 0x2, 0x9) => self.op_ld_f_vx(x),
+            (0xf,   _, 0x3, 0x3) => self.op_ld_b_vx(x),
+            (0xf,   _, 0x5, 0x5) => self.op_ld_i_vx(x),
+            (0xf,   _, 0x6, 0x5) => self.op_ld_vx_i(x),
             (0xf,   _,   _, 0xe) => self.op_add_i_vx(x),
 
             _ => panic!("Unrecognized opcode: {opcode}"),
@@ -292,6 +303,10 @@ impl Cpu {
 
     // Annn - LD I, addr - Set I = nnn.
     // The value of register I is set to nnn.
+    fn op_ld_i(&mut self, nnn: u16) -> InstructionPointer {
+        self.i = nnn;
+        InstructionPointer::Inc
+    }
 
 
     // Bnnn - JP V0, addr - Jump to location nnn + V0.
@@ -302,6 +317,11 @@ impl Cpu {
 
     // Cxkk - RND Vx, byte - Set Vx = random byte AND kk.
     // The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
+    fn op_rnd(&mut self, x: usize, kk: u8) -> InstructionPointer {
+        let r: u8 = rand::thread_rng().gen();
+        self.v[x] = kk & r;
+        InstructionPointer::Inc
+    }
 
 
     // Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
@@ -318,7 +338,6 @@ impl Cpu {
         }
     }
 
-
     // ExA1 - SKNP Vx - Skip next instruction if key with the value of Vx is not pressed.
     // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
     fn op_sknp(&mut self, x: usize) -> InstructionPointer {
@@ -329,11 +348,12 @@ impl Cpu {
         }
     }
 
-
-
     // Fx07 - LD Vx, DT - Set Vx = delay timer value.
     // The value of DT is placed into Vx.
-
+    fn op_ld_vx_dt(&mut self, x: usize) -> InstructionPointer {
+        self.v[x] = self.delay_timer;
+        InstructionPointer::Inc
+    }
 
     // Fx0A - LD Vx, K - Wait for a key press, store the value of the key in Vx.
     // All execution stops until a key is pressed, then the value of that key is stored in Vx.
@@ -343,14 +363,18 @@ impl Cpu {
         InstructionPointer::Inc
     }
 
-
     // Fx15 - LD DT, Vx - Set delay timer = Vx.
     // DT is set equal to the value of Vx.
-
+    fn op_ld_dt_vx(&mut self, x: usize) -> InstructionPointer {
+        self.delay_timer = self.v[x];
+        InstructionPointer::Inc
+    }
 
     // Fx18 - LD ST, Vx - Set sound timer = Vx.
-    // ST is set equal to the value of Vx.
-
+    fn op_ld_st_vx(&mut self, x: usize) -> InstructionPointer {
+        self.sound_timer = self.v[x];
+        InstructionPointer::Inc
+    }
 
     // Fx1E - ADD I, Vx - Set I = I + Vx.
     // The values of I and Vx are added, and the results are stored in I.
@@ -359,17 +383,35 @@ impl Cpu {
         InstructionPointer::Inc
     }
 
-
     // Fx29 - LD F, Vx - Set I = location of sprite for digit Vx.
-    // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx. See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
-
+    // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
+    // See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
+    fn op_ld_f_vx(&mut self, x: usize) -> InstructionPointer {
+        self.i = HEX_DIGIT_ADDR_START + self.v[x] as u16 * HEX_DIGIT_BYTE_LENGTH as u16;
+        InstructionPointer::Inc
+    }
 
     // Fx33 - LD B, Vx - Store BCD representation of Vx in memory locations I, I+1, and I+2.
     // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
+    fn op_ld_b_vx(&mut self, x: usize) -> InstructionPointer {
+        let hundreds = self.v[x] / 100;
+        let tens = (self.v[x] % 100) / 10;
+        let ones = self.v[x] % 10;
+        self.ram[self.i as usize] = hundreds;
+        self.ram[self.i as usize + 1] = tens;
+        self.ram[self.i as usize + 2] = ones;
+        InstructionPointer::Inc
+    }
 
 
     // Fx55 - LD [I], Vx - Store registers V0 through Vx in memory starting at location I.
     // The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
+    fn op_ld_i_vx(&mut self, x: usize) -> InstructionPointer {
+        for i in 0..x+1 {
+            self.ram[self.i as usize + i] = self.v[i];
+        }
+        InstructionPointer::Inc
+    }
 
 
     // Fx65 - LD Vx, [I] - Read registers V0 through Vx from memory starting at location I.

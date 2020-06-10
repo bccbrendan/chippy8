@@ -236,7 +236,6 @@ fn test_add_vx_vy() {
 fn test_sub() {
     // 8xy5 - SUB Vx, Vy - Set Vx = Vx - Vy, set VF = NOT borrow.
     // If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
-    let mut cpu = setup_cpu();
     let x = 0x4;
     let y = 0x7;
     let mut cpu = setup_cpu();
@@ -367,25 +366,77 @@ fn test_rnd() {
     // Cxkk - RND Vx, byte - Set Vx = random byte AND kk.
     // The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
     let mut cpu = setup_cpu();
-    let x = 0x4;
-    let kk = 0x55u8;
-    cpu.execute(0xC455);
-    assert_eq!(false, true);
+    let x = 4;
+    cpu.execute(0xC400);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.v[x], 0x00);  // AND'd with 0
+    cpu.execute(0xC40F);
+    assert_eq!(cpu.v[x] & 0xF0, 0x00);
+    cpu.execute(0xC4F0);
+    assert_eq!(cpu.v[x] & 0x0F, 0x00);
 }
-
 
 #[test]
 fn test_drw() {
     // Dxyn - DRW Vx, Vy, nibble - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
     // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
     let mut cpu = setup_cpu();
-    let x = 0x4;
-    let y = 0x7;
-    let n = 0x8u8;
-    cpu.execute(0xD478);
-    assert_eq!(false, true);
+    cpu.i = 0;
+    cpu.ram[0] = 0b11111111;
+    cpu.ram[1] = 0b00000000;
+    cpu.vram[0][0] = 1;
+    cpu.vram[0][1] = 0;
+    cpu.vram[1][0] = 1;
+    cpu.vram[1][1] = 0;
+    cpu.v[0] = 0;
+    cpu.execute(0xd002);
+    assert_eq!(cpu.vram[0][0], 0);
+    assert_eq!(cpu.vram[0][1], 1);
+    assert_eq!(cpu.vram[1][0], 1);
+    assert_eq!(cpu.vram[1][1], 0);
+    assert_eq!(cpu.v[0x0f], 1);
+    assert!(cpu.vram_changed);
+    assert_eq!(cpu.pc, PC_NEXT);
 }
 
+
+#[test]
+fn test_draw_wrap_horizontal() {
+    let mut cpu = setup_cpu();
+    let x = DISPLAY_WIDTH - 4;
+    cpu.i = 0;
+    cpu.ram[0] = 0b11111111;
+    cpu.v[0] = x as u8;
+    cpu.v[1] = 0;
+    cpu.execute(0xd011);
+    assert_eq!(cpu.vram[0][x - 1], 0);
+    assert_eq!(cpu.vram[0][x], 1);
+    assert_eq!(cpu.vram[0][x + 1], 1);
+    assert_eq!(cpu.vram[0][x + 2], 1);
+    assert_eq!(cpu.vram[0][x + 3], 1);
+    assert_eq!(cpu.vram[0][0], 1);
+    assert_eq!(cpu.vram[0][1], 1);
+    assert_eq!(cpu.vram[0][2], 1);
+    assert_eq!(cpu.vram[0][3], 1);
+    assert_eq!(cpu.vram[0][4], 0);
+    assert_eq!(cpu.v[0x0f], 0);
+}
+
+#[test]
+fn test_draw_wrap_vertical() {
+    // DRW Vx, Vy, nibble
+    let mut cpu = setup_cpu();
+    let y = DISPLAY_HEIGHT - 1;
+    cpu.i = 0;
+    cpu.ram[0] = 0b11111111;
+    cpu.ram[1] = 0b11111111;
+    cpu.v[0] = 0;
+    cpu.v[1] = y as u8;
+    cpu.execute(0xd012);
+    assert_eq!(cpu.vram[y][0], 1);
+    assert_eq!(cpu.vram[0][0], 1);
+    assert_eq!(cpu.v[0x0f], 0);
+}
 
 #[test]
 fn test_skp() {
@@ -416,7 +467,6 @@ fn test_skp() {
 fn test_sknp() {
     // ExA1 - SKNP Vx - Skip next instruction if key with the value of Vx is not pressed.
     // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
-    let mut cpu = setup_cpu();
     let x = 0x4;
     let mut cpu = setup_cpu();
     let x = 0x4;
@@ -501,7 +551,7 @@ fn test_ld_st_vx() {
 
 
 #[test]
-fn test_add_i_Vx() {
+fn test_add_i_vx() {
     // Fx1E - ADD_I_Vx - Set I = I + Vx.
     // The values of I and Vx are added, and the results are stored in I.
     let mut cpu = setup_cpu();
@@ -529,24 +579,35 @@ fn test_ld_f_vx() {
 
 
 #[test]
-fn test_ld_b_vX() {
+fn test_ld_b_vx() {
     // Fx33 - LD_B_Vx - Store BCD representation of Vx in memory locations I, I+1, and I+2.
     // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
     let mut cpu = setup_cpu();
     let x = 0x4;
+    cpu.v[x] = 123;
+    cpu.i = 0x200;
     cpu.execute(0xF433);
-    assert_eq!(false, true);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.ram[cpu.i as usize], 1);
+    assert_eq!(cpu.ram[cpu.i as usize + 1], 2);
+    assert_eq!(cpu.ram[cpu.i as usize + 2], 3);
 }
 
 
 #[test]
-fn test_ld_i_vX() {
-    // Fx55 - LD_I_Vx - Store registers V0 through Vx in memory starting at location I.
+fn test_ld_i_vx() {
+    // Fx55 - LD [I] Vx - Store registers V0 through Vx in memory starting at location I.
     // The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
     let mut cpu = setup_cpu();
-    let x = 0x4;
+    cpu.i = 0x200;
     cpu.execute(0xF455);
-    assert_eq!(false, true);
+    assert_eq!(cpu.pc, PC_NEXT);
+    assert_eq!(cpu.ram[0x200], 0);
+    assert_eq!(cpu.ram[0x201], 1);
+    assert_eq!(cpu.ram[0x202], 2);
+    assert_eq!(cpu.ram[0x203], 3);
+    assert_eq!(cpu.ram[0x204], 4);
+    assert_eq!(cpu.ram[0x205], 0);
 }
 
 
