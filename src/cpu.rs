@@ -7,13 +7,18 @@ use crate::cartridge::MAX_ROM_SIZE;
 const RESET_VECTOR: u16 = 0x200;
 const RAM_LENGTH: usize = 0x1000;
 const OPCODE_SIZE: u16 = 2;
-const DISPLAY_HEIGHT: usize = 32;
-const DISPLAY_WIDTH: usize = 64;
+pub const DISPLAY_HEIGHT: usize = 32;
+pub const DISPLAY_WIDTH: usize = 64;
 
 enum InstructionPointer {
     Inc, // just run the next instruction
     Jump(u16), // set PC to the given addr
     Skip, // skip one PC instruction
+}
+
+pub struct Output<'a> {
+    pub vram: &'a [[u8; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
+    pub vram_changed: bool,
 }
 
 pub struct Cpu {
@@ -60,7 +65,7 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, keys_pressed: [bool; 16]) {
+    pub fn tick(&mut self, keys_pressed: [bool; 16]) -> Output {
         self.keys_pressed = keys_pressed;
         if self.awaiting_keypress {
             for i in 0..keys_pressed.len() {
@@ -71,9 +76,14 @@ impl Cpu {
                 }
             }
         }
+        self.vram_changed = false;
         if !self.awaiting_keypress {
             let op = self.fetch();
             self.execute(op)
+        }
+        Output {
+            vram: &self.vram,
+            vram_changed: self.vram_changed,
         }
     }
 
