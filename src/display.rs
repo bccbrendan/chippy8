@@ -16,24 +16,28 @@ pub struct Display {
 
 impl Display {
     pub fn new(sdl: &sdl2::Sdl, scale: u32) -> Self {
+        println!("getting video subsystem");
         let video = sdl.video().unwrap();
+        println!("opening window");
         let window = video.window(
             "CHIPPY8",
             DISPLAY_WIDTH as u32 * scale,
             DISPLAY_HEIGHT as u32 * scale)
-            .position_centered()
             .build()
             .unwrap();
+        println!("getting canvas");
         let mut canvas = window.into_canvas()
             .build()
             .unwrap();
+        println!("clearing canvas");
         canvas.clear();
+        println!("presenting canvas");
         canvas.present();
         canvas.set_draw_color(pixels::Color::RGB(0, 0, 0));
         Display {
             canvas: canvas,
             scale: scale,
-            pixel_lit: pixels::Color::RGB(255, 255, 255),
+            pixel_lit: pixels::Color::RGB(0xff, 0xbf, 0),
             pixel_unlit: pixels::Color::RGB(0, 0, 0),
         }
     }
@@ -46,7 +50,7 @@ impl Display {
                 let y: i32 = vram_row as i32 * self.scale as i32;
                 let x: i32 = vram_column as i32 * self.scale as i32;
                 self.canvas.set_draw_color(color);
-                self.canvas.fill_rect(Rect::new(x, y, self.scale, self.scale));
+                let _ = self.canvas.fill_rect(Rect::new(x, y, self.scale, self.scale));
             }
         }
         self.canvas.present();

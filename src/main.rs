@@ -9,6 +9,8 @@ use crate::cartridge::Cartridge;
 use crate::input::Input;
 use crate::display::Display;
 use crate::cpu::Cpu;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -19,22 +21,31 @@ fn main() {
 
     println!("initializing sdl2");
     let sdl = sdl2::init().unwrap();
-    let mut input = Input::new(&sdl);
+    let mut input = Input::new();
     println!("creating window");
     let scale_xy = 16;
     let mut display = Display::new(&sdl, scale_xy);
+    let mut event_pump = sdl.event_pump().unwrap();
     println!("starting game loop");
     'game_loop: loop {
+        // handle events like key presses and window resizing/closing
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit {..} |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'game_loop
+                }
+                Event::KeyDown {..} => { input.keydown(event) }
+                Event::KeyUp {..} => { input.keyup(event) }
+                // TODO resize with WindowEvent::Resized(i32, i32)
+                _ => {}
+            }
+        }
         // let time_before = instant::now();
-        // handle events from SDL
-        let keys = match input.poll() {
-            Some(keys) => keys,
-            None => break 'game_loop,
-        };
-        println!("ticking");
+        let keys = input.keys_pressed();
         let output = cpu.tick(keys);
         if output.vram_changed {
-            println!("drawing");
+            // println!("drawing");
             display.draw(output.vram);
         }
     }

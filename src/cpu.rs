@@ -65,8 +65,8 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, keys_pressed: [bool; 16]) -> Output {
-        self.keys_pressed = keys_pressed;
+    pub fn tick(&mut self, keys_pressed: &[bool; 16]) -> Output {
+        self.keys_pressed = *keys_pressed;
         if self.awaiting_keypress {
             for i in 0..keys_pressed.len() {
                 if keys_pressed[i] {
@@ -75,6 +75,13 @@ impl Cpu {
                     break;
                 }
             }
+        }
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
         }
         self.vram_changed = false;
         if !self.awaiting_keypress {
@@ -89,7 +96,8 @@ impl Cpu {
 
     pub fn fetch(&self) -> u16 {
         let addr = self.pc as usize;
-        (self.ram[addr] as u16) << 8 | (self.ram[addr+1] as u16)
+        let opcode = (self.ram[addr] as u16) << 8 | (self.ram[addr+1] as u16);
+        opcode
     }
 
     pub fn execute(&mut self, opcode: u16) {
@@ -104,7 +112,6 @@ impl Cpu {
         let x =  ((opcode & 0x0F00) >> 8) as usize;
         let y =  ((opcode & 0x00F0) >> 4) as usize;
         let n =   (opcode & 0x000F) as usize;
-        println!("opcode: {:X}", opcode);
         let next_ip = match nibbles {
             // (0x0,   _,   _,   _)  => panic!("SYS addr - ignored."),
             (0x0, 0x0, 0xE, 0x0) => self.op_cls(),
@@ -184,7 +191,7 @@ impl Cpu {
     // The PC is then set to nnn.
     fn op_call(&mut self, nnn: u16) -> InstructionPointer {
         self.sp += 1;
-        self.stack[self.sp as usize] = self.pc;
+        self.stack[self.sp as usize] = self.pc + OPCODE_SIZE;
         InstructionPointer::Jump(nnn)
     }
 
@@ -231,7 +238,7 @@ impl Cpu {
     // 7xkk - ADD Vx, byte - Set Vx = Vx + kk.
     // Adds the value kk to the value of register Vx, then stores the result in Vx.
     fn op_add(&mut self, x: usize, kk: u8) -> InstructionPointer {
-        self.v[x] += kk;
+        self.v[x] = self.v[x].wrapping_add(kk);
         InstructionPointer::Inc
     }
 

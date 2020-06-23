@@ -2,3 +2,5 @@
 **/*.rs.bk
 target
 Cargo.lock
+roms/
+log.txt
