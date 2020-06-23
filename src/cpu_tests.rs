@@ -71,7 +71,7 @@ fn test_call() {
     let mut cpu = setup_cpu();
     cpu.execute(0x2ace);
     assert_eq!(cpu.sp, 1);
-    assert_eq!(cpu.stack[1], PC);
+    assert_eq!(cpu.stack[1], PC + OPCODE_SIZE);
     assert_eq!(cpu.pc, 0xace);
 }
 
@@ -447,14 +447,14 @@ fn test_skp() {
     cpu.ram[PC as usize] = 0xE4;
     cpu.ram[PC as usize + 1] = 0x9E;
     // all keys pressed except key0
-    cpu.tick([false, true, true, true,
+    cpu.tick(&[false, true, true, true,
               true, true, true, true,
               true, true, true, true,
               true, true, true, true]);
     assert_eq!(cpu.pc, PC_NEXT);
     cpu.pc = PC;
     // key0 is only key pressed
-    cpu.tick([true, false, false, false,
+    cpu.tick(&[true, false, false, false,
               false, false, false, false,
               false, false, false, false,
               false, false, false, false]);
@@ -472,7 +472,7 @@ fn test_sknp() {
     cpu.ram[PC as usize] = 0xE4;
     cpu.ram[PC as usize + 1] = 0xa1;
     // key0 is only key pressed
-    cpu.tick([true, false, false, false,
+    cpu.tick(&[true, false, false, false,
               false, false, false, false,
               false, false, false, false,
               false, false, false, false]);
@@ -480,7 +480,7 @@ fn test_sknp() {
 
     cpu.pc = PC;
     // all keys pressed except key0
-    cpu.tick([false, true, true, true,
+    cpu.tick(&[false, true, true, true,
               true, true, true, true,
               true, true, true, true,
               true, true, true, true]);
@@ -509,13 +509,13 @@ fn test_ld_vx_k() {
     let mut cpu = setup_cpu();
     cpu.execute(0xF40A);
     assert_eq!(cpu.pc, PC_NEXT);
-    cpu.tick([false; 16]);
+    cpu.tick(&[false; 16]);
     assert_eq!(cpu.pc, PC_NEXT);
     // 0xF71E;  add I v[7], safe to exec
     cpu.ram[cpu.pc as usize] = 0xF7;
     cpu.ram[(cpu.pc + 1) as usize] = 0x1E;
     assert_eq!(cpu.pc, PC_NEXT);
-    cpu.tick([false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false]);
+    cpu.tick(&[false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false]);
     assert_eq!(cpu.pc, PC_NEXT + 2);
     assert_eq!(cpu.v[4], 2);
 }

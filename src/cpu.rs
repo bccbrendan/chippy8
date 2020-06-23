@@ -65,6 +65,26 @@ impl Cpu {
         }
     }
 
+    pub fn tick_60_hz(&mut self, keys_pressed: &[bool; 16]) -> Output {
+        let mut vram_changed_in_frame = false;
+        for _ in 0..10 {
+            self.tick(keys_pressed);
+            vram_changed_in_frame |= self.vram_changed;
+        }
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
+        Output {
+            vram: &self.vram,
+            vram_changed: vram_changed_in_frame,
+        }
+    }
+
+
     pub fn tick(&mut self, keys_pressed: &[bool; 16]) -> Output {
         self.keys_pressed = *keys_pressed;
         if self.awaiting_keypress {
@@ -75,13 +95,6 @@ impl Cpu {
                     break;
                 }
             }
-        }
-        if self.delay_timer > 0 {
-            self.delay_timer -= 1;
-        }
-
-        if self.sound_timer > 0 {
-            self.sound_timer -= 1;
         }
         self.vram_changed = false;
         if !self.awaiting_keypress {

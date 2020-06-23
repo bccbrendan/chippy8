@@ -5,6 +5,8 @@ mod fonts;
 mod cpu;
 
 use std::env;
+use std::time::Instant;
+use std::time::Duration;
 use crate::cartridge::Cartridge;
 use crate::input::Input;
 use crate::display::Display;
@@ -26,8 +28,10 @@ fn main() {
     let scale_xy = 16;
     let mut display = Display::new(&sdl, scale_xy);
     let mut event_pump = sdl.event_pump().unwrap();
+    let target_time = Duration::from_millis(1000 / 60);
     println!("starting game loop");
     'game_loop: loop {
+        let time_before = Instant::now();
         // handle events like key presses and window resizing/closing
         for event in event_pump.poll_iter() {
             match event {
@@ -43,10 +47,18 @@ fn main() {
         }
         // let time_before = instant::now();
         let keys = input.keys_pressed();
-        let output = cpu.tick(keys);
+        let output = cpu.tick_60_hz(keys);
         if output.vram_changed {
             // println!("drawing");
             display.draw(output.vram);
+        }
+        // sleep to adjust for fps
+        let sleep_millis = target_time.checked_sub(Instant::now() - time_before);
+        match sleep_millis {
+            None => {}, // we're running below target fps
+            Some(sleep_millis) => {
+                ::std::thread::sleep(sleep_millis);
+            }
         }
     }
 }
