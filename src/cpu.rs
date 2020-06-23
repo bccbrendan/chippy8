@@ -19,6 +19,7 @@ enum InstructionPointer {
 pub struct Output<'a> {
     pub vram: &'a [[u8; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
     pub vram_changed: bool,
+    pub beep: bool,
 }
 
 pub struct Cpu {
@@ -81,6 +82,7 @@ impl Cpu {
         Output {
             vram: &self.vram,
             vram_changed: vram_changed_in_frame,
+            beep: self.sound_timer > 0,
         }
     }
 
@@ -104,6 +106,7 @@ impl Cpu {
         Output {
             vram: &self.vram,
             vram_changed: self.vram_changed,
+            beep: self.sound_timer > 0,
         }
     }
 

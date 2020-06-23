@@ -3,6 +3,7 @@ mod input;
 mod display;
 mod fonts;
 mod cpu;
+mod sound;
 
 use std::env;
 use std::time::Instant;
@@ -11,6 +12,7 @@ use crate::cartridge::Cartridge;
 use crate::input::Input;
 use crate::display::Display;
 use crate::cpu::Cpu;
+use crate::sound::Sound;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
@@ -27,6 +29,7 @@ fn main() {
     println!("creating window");
     let scale_xy = 16;
     let mut display = Display::new(&sdl, scale_xy);
+    let mut sound = Sound::new(&sdl);
     let mut event_pump = sdl.event_pump().unwrap();
     let target_time = Duration::from_millis(1000 / 60);
     println!("starting game loop");
@@ -52,6 +55,7 @@ fn main() {
             // println!("drawing");
             display.draw(output.vram);
         }
+        sound.beep(output.beep);
         // sleep to adjust for fps
         let sleep_millis = target_time.checked_sub(Instant::now() - time_before);
         match sleep_millis {
