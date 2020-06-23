@@ -22,36 +22,51 @@ impl AudioCallback for SquareWave {
 }
 
 pub struct Sound {
-    device: AudioDevice<SquareWave>,
+    device_opt: Option<AudioDevice<SquareWave>>,
     playing: bool,
 }
 
 impl Sound {
     pub fn new(sdl: &sdl2::Sdl) -> Self {
+        println!("Getting audio subsystem");
         let audio_subsystem = sdl.audio().unwrap();
         let desired_spec = AudioSpecDesired {
             freq: Some(44100),
             channels: Some(1),
             samples: None,
         };
-        let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
+
+        let device_opt = match audio_subsystem.open_playback(None, &desired_spec, |spec| {
             SquareWave {
                 phase_inc: 440.0 / spec.freq as f32,
                 phase: 0.0,
                 volume: 0.25,
             }
-        }).unwrap();
+        }) {
+            Err(e) => {
+                println!("Unable to initiate audio: {}", e);
+                None
+            }
+            Ok(device) => {
+                Some(device)
+            }
+        };
         Sound {
-            device: device,
+            device_opt: device_opt,
             playing: false,
         }
     }
 
     pub fn beep(&mut self, to_beep_or_not_to_beep: bool) {
-        if !self.playing && to_beep_or_not_to_beep {
-            self.device.resume()
-        } else if self.playing && !to_beep_or_not_to_beep {
-            self.device.pause()
+        match &self.device_opt {
+            Some(device) => {
+                if !self.playing && to_beep_or_not_to_beep {
+                    device.resume()
+                } else if self.playing && !to_beep_or_not_to_beep {
+                    device.pause()
+                }
+            },
+            None => {},
         }
         self.playing = to_beep_or_not_to_beep;
     }
