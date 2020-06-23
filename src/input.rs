@@ -47,22 +47,22 @@ impl Input {
 
     pub fn keyup(&mut self, event: sdl2::event::Event) {
         match event {
-            Event::KeyDown { keycode: Some(Keycode::Num1), .. } => { self.keys_pressed[1] = false },
-            Event::KeyDown { keycode: Some(Keycode::Num2), .. } => { self.keys_pressed[2] = false },
-            Event::KeyDown { keycode: Some(Keycode::Num3), .. } => { self.keys_pressed[3] = false },
-            Event::KeyDown { keycode: Some(Keycode::Num4), .. } => { self.keys_pressed[0xc] = false }
-            Event::KeyDown { keycode: Some(Keycode::Q), .. } => { self.keys_pressed[4] = false }
-            Event::KeyDown { keycode: Some(Keycode::W), .. } => { self.keys_pressed[5] = false }
-            Event::KeyDown { keycode: Some(Keycode::E), .. } => { self.keys_pressed[6] = false }
-            Event::KeyDown { keycode: Some(Keycode::R), .. } => { self.keys_pressed[0xd] = false }
-            Event::KeyDown { keycode: Some(Keycode::A), .. } => { self.keys_pressed[7] = false }
-            Event::KeyDown { keycode: Some(Keycode::S), .. } => { self.keys_pressed[8] = false }
-            Event::KeyDown { keycode: Some(Keycode::D), .. } => { self.keys_pressed[9] = false }
-            Event::KeyDown { keycode: Some(Keycode::F), .. } => { self.keys_pressed[0xe] = false }
-            Event::KeyDown { keycode: Some(Keycode::Z), .. } => { self.keys_pressed[0xa] = false }
-            Event::KeyDown { keycode: Some(Keycode::X), .. } => { self.keys_pressed[0] = false }
-            Event::KeyDown { keycode: Some(Keycode::C), .. } => { self.keys_pressed[0xb] = false }
-            Event::KeyDown { keycode: Some(Keycode::V), .. } => { self.keys_pressed[0xf] = false }
+            Event::KeyUp { keycode: Some(Keycode::Num1), .. } => { self.keys_pressed[1] = false },
+            Event::KeyUp { keycode: Some(Keycode::Num2), .. } => { self.keys_pressed[2] = false },
+            Event::KeyUp { keycode: Some(Keycode::Num3), .. } => { self.keys_pressed[3] = false },
+            Event::KeyUp { keycode: Some(Keycode::Num4), .. } => { self.keys_pressed[0xc] = false }
+            Event::KeyUp { keycode: Some(Keycode::Q), .. } => { self.keys_pressed[4] = false }
+            Event::KeyUp { keycode: Some(Keycode::W), .. } => { self.keys_pressed[5] = false }
+            Event::KeyUp { keycode: Some(Keycode::E), .. } => { self.keys_pressed[6] = false }
+            Event::KeyUp { keycode: Some(Keycode::R), .. } => { self.keys_pressed[0xd] = false }
+            Event::KeyUp { keycode: Some(Keycode::A), .. } => { self.keys_pressed[7] = false }
+            Event::KeyUp { keycode: Some(Keycode::S), .. } => { self.keys_pressed[8] = false }
+            Event::KeyUp { keycode: Some(Keycode::D), .. } => { self.keys_pressed[9] = false }
+            Event::KeyUp { keycode: Some(Keycode::F), .. } => { self.keys_pressed[0xe] = false }
+            Event::KeyUp { keycode: Some(Keycode::Z), .. } => { self.keys_pressed[0xa] = false }
+            Event::KeyUp { keycode: Some(Keycode::X), .. } => { self.keys_pressed[0] = false }
+            Event::KeyUp { keycode: Some(Keycode::C), .. } => { self.keys_pressed[0xb] = false }
+            Event::KeyUp { keycode: Some(Keycode::V), .. } => { self.keys_pressed[0xf] = false }
             _ => {},
         }
      }
